@@ -1,0 +1,45 @@
+name: Validate JSON artifacts
+
+on:
+  pull_request:
+    paths:
+      - 'schemas/**.json'
+      - 'mappings/**.json'
+
+jobs:
+  validate-json:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate JSON files
+        run: |
+          set -e
+          for f in schemas/*.json mappings/*.json; do
+            if [ -f "$f" ]; then
+              echo "Validating $f..."
+              python -c "import json, sys; json.load(open('$f'))"
+              echo "  ✓ Valid JSON"
+            fi
+          done
+      - name: Validate rules engine structure
+        run: |
+          python <<'EOF'
+          import json, sys
+          with open('schemas/conformedi_rules_engine.json') as f:
+              data = json.load(f)
+          assert 'version' in data, "Missing 'version' key"
+          assert 'blocks' in data, "Missing 'blocks' key"
+          assert len(data['blocks']) == 8, f"Expected 8 blocks, got {len(data['blocks'])}"
+          for k, b in data['blocks'].items():
+              assert 'label' in b, f"Block {k} missing 'label'"
+              assert 'diagnostic_variables' in b, f"Block {k} missing 'diagnostic_variables'"
+              for vname, vdef in b['diagnostic_variables'].items():
+                  assert 'rules' in vdef, f"Var {k}.{vname} missing 'rules'"
+                  assert 'default' in vdef, f"Var {k}.{vname} missing 'default'"
+                  assert 'values' in vdef, f"Var {k}.{vname} missing 'values'"
+          print("✓ Rules engine structure valid")
+          EOF

@@ -1,0 +1,153 @@
+{
+  "name": "save_broker_inputs",
+  "description": "Extrait du discours libre du courtier les variables atomiques nécessaires au moteur de règles ConformEDI. RÈGLE CARDINALE : si une information n'est pas explicitement présente dans l'entretien, mettre `null`. Ne jamais inventer ni extrapoler. Chaque bloc dispose d'un champ `_evidence` (citation courte de l'entretien justifiant l'extraction) et `_confidence` (0.0 à 1.0). Pour les variables booléennes, utiliser true/false uniquement si la déclaration est claire. Pour les énumérations, utiliser strictement les valeurs autorisées.",
+  "input_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["bloc_1", "bloc_2", "bloc_3", "bloc_4", "bloc_5", "bloc_6", "bloc_7", "bloc_8"],
+    "properties": {
+
+      "bloc_1": {
+        "type": "object",
+        "description": "Bloc 1 - Socle réglementaire. Source principale : Q1 (cadre d'exercice), avec apports de Q4 (RGPD, IA) et Q8 (contrôle interne, PCA).",
+        "additionalProperties": false,
+        "properties": {
+          "activite_france_uniquement": {"type": ["boolean", "null"], "description": "Le cabinet exerce-t-il exclusivement en France ?"},
+          "activite_eee": {"type": ["boolean", "null"], "description": "Le cabinet exerce-t-il une activité dans un autre État de l'EEE (hors France) ?"},
+          "activite_hors_eee": {"type": ["boolean", "null"], "description": "Le cabinet exerce-t-il une activité hors EEE ?"},
+          "activites_operationnelles_hors_france": {"type": ["boolean", "null"], "description": "Activités opérationnelles (souscription, gestion, sinistres, indemnisation) réalisées hors France ?"},
+          "prestations_sous_traitees_hors_france": {"type": ["boolean", "null"], "description": "Des prestations sont-elles sous-traitées à des prestataires situés hors France ?"},
+          "cabinet_independant": {"type": ["boolean", "null"], "description": "Le cabinet est-il indépendant (n'appartient pas à un groupe, pas de filiales, pas d'actionnaire majoritaire entreprise) ?"},
+          "activite_accessoire": {"type": ["boolean", "null"], "description": "Le courtage est-il exercé à titre accessoire (au sens art. L511-1 III Code des assurances) ?"},
+          "delegation": {"type": ["boolean", "null"], "description": "Le cabinet exerce-t-il en délégation (souscription, gestion, sinistres) pour un assureur ?"},
+          "dispositif_lcbft": {"type": ["boolean", "null"], "description": "Existence d'un dispositif LCB-FT formalisé (politique, procédure, responsable désigné) ?"},
+          "dispositif_detection_global": {"type": ["boolean", "null"], "description": "Dispositif de détection global PPE / gel des avoirs / pays à risque opérationnel ?"},
+          "formation_lcbft_personnel": {"type": ["boolean", "null"], "description": "Le personnel (y compris dirigeant) a-t-il été formé à la LCB-FT ?"},
+          "dispositif_controle_interne": {"type": ["boolean", "null"], "description": "Existence d'un dispositif de contrôle interne formalisé (N1, N2, cartographie des risques) ?"},
+          "pca_detaille": {"type": ["boolean", "null"], "description": "Plan de continuité d'activité formalisé ET détaillé (activités critiques, délais, procédures de bascule) ?"},
+          "politique_rgpd_diffusee": {"type": ["boolean", "null"], "description": "Politique/procédure RGPD diffusée à l'ensemble du personnel ?"},
+          "registre_traitements": {"type": ["boolean", "null"], "description": "Registre des activités de traitement de données personnelles à jour ?"},
+          "utilisation_ia": {"type": ["boolean", "null"], "description": "Le cabinet utilise-t-il un système d'IA au sens du règlement IA UE dans ses activités ?"},
+          "respect_cadre_ia": {"type": ["boolean", "null"], "description": "Si utilisation_ia=true, les obligations du règlement IA UE sont-elles respectées ?"},
+          "_confidence": {"type": "number", "minimum": 0, "maximum": 1},
+          "_evidence": {"type": ["string", "null"]}
+        }
+      },
+
+      "bloc_2": {
+        "type": "object",
+        "description": "Bloc 2 - Distribution / Conseil. Source principale : Q2.",
+        "additionalProperties": false,
+        "properties": {
+          "selection_multi_assureurs": {"type": ["boolean", "null"], "description": "Le courtier travaille-t-il avec plusieurs assureurs (≥3) et effectue une analyse comparative ?"},
+          "analyse_besoins_client": {"type": ["string", "null"], "enum": ["oui", "partiel", "non", null], "description": "Niveau d'analyse formalisée des besoins du client (fiche, questionnaire, scoring)."},
+          "analyse_situation_client": {"type": ["boolean", "null"], "description": "Analyse de la situation patrimoniale/professionnelle/familiale du client formalisée ?"},
+          "recommandation_personnalisee": {"type": ["boolean", "null"], "description": "La recommandation produit est-elle personnalisée et formalisée (motivation écrite) ?"},
+          "tracabilite_conseil": {"type": ["string", "null"], "enum": ["forte", "moyenne", "faible", null], "description": "Niveau de traçabilité du conseil. forte = documentation écrite systématique + archivage ; moyenne = écrit mais incomplet ; faible = oral ou ad hoc."},
+          "adequation_produit_client": {"type": ["boolean", "null"], "description": "Mécanisme formalisé de vérification de l'adéquation entre produit recommandé et profil client ?"},
+          "vente_distance": {"type": ["boolean", "null"], "description": "Le cabinet pratique-t-il la vente à distance (téléphone, web, visio) ?"},
+          "preuve_consentement": {"type": ["boolean", "null"], "description": "Si vente_distance=true : preuve du consentement client formellement recueillie (enregistrement, signature électronique, double opt-in) ?"},
+          "archivage_consentement": {"type": ["boolean", "null"], "description": "Si vente_distance=true : preuves de consentement archivées et opposables ?"},
+          "_confidence": {"type": "number", "minimum": 0, "maximum": 1},
+          "_evidence": {"type": ["string", "null"]}
+        }
+      },
+
+      "bloc_3": {
+        "type": "object",
+        "description": "Bloc 3 - Connaissance client (KYC). Source principale : Q3.",
+        "additionalProperties": false,
+        "properties": {
+          "identification_client_complete": {"type": ["boolean", "null"], "description": "Le processus d'identification client est-il complet (pièce ID, justificatif de domicile, Kbis si PM) ?"},
+          "collecte_informations_structuree": {"type": ["string", "null"], "enum": ["oui", "partielle", "non", null], "description": "Niveau de structuration de la collecte d'informations client. oui = fiche client standardisée ; partielle = collecte mais non systématique ; non = ad hoc."},
+          "verification_informations": {"type": ["boolean", "null"], "description": "Les informations recueillies sont-elles vérifiées/recoupées avec des sources externes (registres officiels, KYC tiers, etc.) ?"},
+          "mise_a_jour_reguliere": {"type": ["boolean", "null"], "description": "Mise à jour périodique programmée (annuelle, par exemple) des données client ?"},
+          "mise_a_jour_evenementielle": {"type": ["boolean", "null"], "description": "Mise à jour déclenchée par évènement (renouvellement, sinistre, changement déclaré) ?"},
+          "suivi_client": {"type": ["boolean", "null"], "description": "Suivi formalisé de la relation client dans le temps (CRM, historique d'échanges, points périodiques) ?"},
+          "beneficiaires_effectifs_identifies": {"type": ["boolean", "null"], "description": "Pour les clients personnes morales : les bénéficiaires effectifs sont-ils identifiés et documentés (CERFA, RBE) ?"},
+          "_confidence": {"type": "number", "minimum": 0, "maximum": 1},
+          "_evidence": {"type": ["string", "null"]}
+        }
+      },
+
+      "bloc_4": {
+        "type": "object",
+        "description": "Bloc 4 - Système d'information. Source principale : Q4.",
+        "additionalProperties": false,
+        "properties": {
+          "stockage_donnees_centralise": {"type": ["boolean", "null"], "description": "Les données client sont-elles stockées de manière centralisée (logiciel métier, CRM unique) ?"},
+          "stockage_donnees_diffus": {"type": ["boolean", "null"], "description": "Existe-t-il des stockages diffus / parallèles (Excel, dossiers locaux non synchronisés) ?"},
+          "acces_individualise": {"type": ["boolean", "null"], "description": "Chaque collaborateur dispose-t-il d'un accès individuel nominatif au SI (pas de comptes partagés) ?"},
+          "authentification_renforcee": {"type": ["boolean", "null"], "description": "Authentification forte mise en place (MFA, SSO, certificats) sur le SI principal ?"},
+          "sauvegarde_automatique": {"type": ["boolean", "null"], "description": "Sauvegardes automatiques quotidiennes ou en temps réel ?"},
+          "sauvegarde_reguliere": {"type": ["boolean", "null"], "description": "À défaut d'automatique : sauvegardes manuelles régulières (au moins hebdomadaires) ?"},
+          "plan_continuite": {"type": ["boolean", "null"], "description": "Plan de continuité informatique formalisé (PCI) ?"},
+          "filtrage_lcbft": {"type": ["boolean", "null"], "description": "Outil de filtrage automatique LCB-FT (gel des avoirs, PPE, listes sanctions) en place ?"},
+          "mise_a_jour_listes_sanctions": {"type": ["boolean", "null"], "description": "Les listes de sanctions sont-elles tenues à jour automatiquement / temps réel ?"},
+          "sous_traitants_tic_critiques_identifies": {"type": ["boolean", "null"], "description": "Liste des sous-traitants TIC critiques (hébergeur, éditeur métier, sauvegarde cloud) identifiée et tenue à jour ?"},
+          "_confidence": {"type": "number", "minimum": 0, "maximum": 1},
+          "_evidence": {"type": ["string", "null"]}
+        }
+      },
+
+      "bloc_5": {
+        "type": "object",
+        "description": "Bloc 5 - Données sensibles (santé). Source : Q5. Si traitement_donnees_sante=false, les autres champs sont sans objet — le bloc est neutralisé par le rules engine.",
+        "additionalProperties": false,
+        "properties": {
+          "traitement_donnees_sante": {"type": ["boolean", "null"], "description": "POINT D'ENTRÉE. Le cabinet traite-t-il des données de santé dans ses activités (prévoyance, santé collective, sinistres médicaux) ?"},
+          "acces_donnees_sante_restreint": {"type": ["boolean", "null"], "description": "Accès aux données santé restreint au seul personnel habilité (médecin conseil, gestionnaires formés) ?"},
+          "zones_aeras_securisees": {"type": ["boolean", "null"], "description": "Zones AERAS (où les données santé sont traitées/stockées) physiquement et logiquement sécurisées ?"},
+          "_confidence": {"type": "number", "minimum": 0, "maximum": 1},
+          "_evidence": {"type": ["string", "null"]}
+        }
+      },
+
+      "bloc_6": {
+        "type": "object",
+        "description": "Bloc 6 - Sous-délégation. Source : Q6. Si sous_delegation=false, les autres champs sans objet.",
+        "additionalProperties": false,
+        "properties": {
+          "sous_delegation": {"type": ["boolean", "null"], "description": "POINT D'ENTRÉE. Le cabinet a-t-il recours à la subdélégation (transfère certaines activités déléguées à un tiers) ?"},
+          "contrat_subdelegation": {"type": ["boolean", "null"], "description": "Existe-t-il une convention écrite avec chaque subdélégataire couvrant les exigences réglementaires ?"},
+          "supervision_subdelegation": {"type": ["boolean", "null"], "description": "Dispositif de pilotage régulier des subdélégataires (instances, reporting, indicateurs) ?"},
+          "controle_subdelegation": {"type": ["boolean", "null"], "description": "Contrôles opérationnels et audits réguliers réalisés sur les subdélégataires ?"},
+          "controle_ia_subdelegataire": {"type": ["boolean", "null"], "description": "Si subdélégataire utilise une IA au sens du règlement IA : le cabinet vérifie-t-il la conformité ?"},
+          "_confidence": {"type": "number", "minimum": 0, "maximum": 1},
+          "_evidence": {"type": ["string", "null"]}
+        }
+      },
+
+      "bloc_7": {
+        "type": "object",
+        "description": "Bloc 7 - Encaissement / flux financiers. Source : Q7. Si encaissement_fonds=false, les autres champs sans objet.",
+        "additionalProperties": false,
+        "properties": {
+          "encaissement_fonds": {"type": ["boolean", "null"], "description": "POINT D'ENTRÉE. Le cabinet encaisse-t-il ou fait-il transiter des fonds pour le compte de clients ou d'assureurs ?"},
+          "transit_fonds": {"type": ["boolean", "null"], "description": "Des fonds transitent-ils par les comptes du cabinet (vs versement direct client → assureur) ?"},
+          "tracabilite_flux": {"type": ["boolean", "null"], "description": "Traçabilité comptable formalisée des flux entrants/sortants (référence dossier, suivi par contrat) ?"},
+          "separation_comptes": {"type": ["boolean", "null"], "description": "Compte bancaire dédié distinct du compte d'exploitation pour les fonds de tiers ?"},
+          "controle_flux": {"type": ["boolean", "null"], "description": "Contrôles réguliers (rapprochements, validations, audits) des flux financiers ?"},
+          "_confidence": {"type": "number", "minimum": 0, "maximum": 1},
+          "_evidence": {"type": ["string", "null"]}
+        }
+      },
+
+      "bloc_8": {
+        "type": "object",
+        "description": "Bloc 8 - Incidents / Pilotage. Source principale : Q8.",
+        "additionalProperties": false,
+        "properties": {
+          "incidents_identifies": {"type": ["boolean", "null"], "description": "Les incidents/réclamations/erreurs sont-ils systématiquement identifiés et tracés ?"},
+          "canal_signalement": {"type": ["boolean", "null"], "description": "Canal de signalement formalisé pour le personnel et les clients (email dédié, formulaire, registre) ?"},
+          "traitement_structure": {"type": ["string", "null"], "enum": ["oui", "partiel", "non", null], "description": "Niveau de structuration du processus de traitement des incidents. oui = procédure écrite + responsable + délais ; partiel = procédure partielle ; non = ad hoc."},
+          "suivi_incidents": {"type": ["boolean", "null"], "description": "Suivi de la résolution des incidents (état, délai, qualité) jusqu'à clôture ?"},
+          "actions_correctives": {"type": ["boolean", "null"], "description": "Actions correctives mises en œuvre après traitement (modification de procédure, formation, etc.) ?"},
+          "amelioration_continue": {"type": ["boolean", "null"], "description": "Dispositif d'amélioration continue alimenté par les incidents (revues périodiques, indicateurs, capitalisation) ?"},
+          "_confidence": {"type": "number", "minimum": 0, "maximum": 1},
+          "_evidence": {"type": ["string", "null"]}
+        }
+      }
+    }
+  }
+}

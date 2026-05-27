@@ -1,0 +1,659 @@
+{
+  "version": "2026.1.0",
+  "description": "Référentiel ConformEDI des règles métier de calcul des variables de diagnostic à partir des variables atomiques extraites. Format évaluable de manière déterministe (cf. evaluate_rules.js).",
+  "evaluation_semantics": {
+    "rule_format": "Chaque variable de diagnostic possède une liste ordonnée de règles. La première règle dont la condition est satisfaite donne le résultat. Si aucune ne match, on prend `default`.",
+    "condition_keys": {
+      "object_literal": "Un objet {var1: val1, var2: val2} est un AND implicite : toutes les variables doivent être strictement égales aux valeurs.",
+      "or": "{or: [{a: 1}, {b: 2}]} = OU logique entre les sous-conditions.",
+      "and": "{and: [...]} = ET logique (équivalent à objet littéral mais explicite).",
+      "any_of_at_least": "{any_of_at_least: {vars: [['a', true], ['b', true]], min: 1}} = au moins N variables ont leur valeur cible."
+    },
+    "null_handling": "Une variable null ne matche aucune condition stricte. Si toutes les règles échouent à cause de nulls, la diagnostic_variable prend la valeur 'À_VALIDER' (jamais null en sortie).",
+    "block_inactive_behavior": "Si un bloc a active_when et la condition n'est pas satisfaite, toutes ses diagnostic_variables retournent 'N/A' automatiquement."
+  },
+
+  "blocks": {
+
+    "bloc_1": {
+      "label": "Socle réglementaire",
+      "edi_sheets": ["Socle règlementaire", "Système d'information (partiel)", "Entrée en relation (partiel)"],
+      "active_when": null,
+      "diagnostic_variables": {
+
+        "activite_hors_france": {
+          "label": "Activité hors France",
+          "values": ["OUI", "NON", "À_VALIDER"],
+          "rules": [
+            {"when": {"activite_france_uniquement": true}, "then": "NON"},
+            {"when": {"activite_france_uniquement": false}, "then": "OUI"}
+          ],
+          "default": "À_VALIDER"
+        },
+
+        "activite_eee": {
+          "label": "Activité EEE",
+          "values": ["OUI", "NON", "À_VALIDER"],
+          "rules": [
+            {"when": {"activite_eee": true}, "then": "OUI"},
+            {"when": {"activite_eee": false}, "then": "NON"}
+          ],
+          "default": "À_VALIDER"
+        },
+
+        "activite_hors_eee": {
+          "label": "Activité hors EEE",
+          "values": ["OUI", "NON", "À_VALIDER"],
+          "rules": [
+            {"when": {"activite_hors_eee": true}, "then": "OUI"},
+            {"when": {"activite_hors_eee": false}, "then": "NON"}
+          ],
+          "default": "À_VALIDER"
+        },
+
+        "activites_operationnelles_traitees_hors_france": {
+          "label": "Activités opérationnelles traitées hors France (2026)",
+          "values": ["OUI", "NON", "À_VALIDER"],
+          "rules": [
+            {"when": {"or": [{"activites_operationnelles_hors_france": true}, {"prestations_sous_traitees_hors_france": true}]}, "then": "OUI"},
+            {"when": {"activites_operationnelles_hors_france": false, "prestations_sous_traitees_hors_france": false}, "then": "NON"}
+          ],
+          "default": "À_VALIDER"
+        },
+
+        "appartenance_groupe": {
+          "label": "Appartenance à un groupe",
+          "values": ["OUI", "NON", "À_VALIDER"],
+          "rules": [
+            {"when": {"cabinet_independant": true}, "then": "NON"},
+            {"when": {"cabinet_independant": false}, "then": "OUI"}
+          ],
+          "default": "À_VALIDER"
+        },
+
+        "activite_accessoire": {
+          "label": "Activité accessoire",
+          "values": ["OUI", "NON", "À_VALIDER"],
+          "rules": [
+            {"when": {"activite_accessoire": true}, "then": "OUI"},
+            {"when": {"activite_accessoire": false}, "then": "NON"}
+          ],
+          "default": "À_VALIDER"
+        },
+
+        "delegation": {
+          "label": "Délégation",
+          "values": ["OUI", "NON", "À_VALIDER"],
+          "rules": [
+            {"when": {"delegation": true}, "then": "OUI"},
+            {"when": {"delegation": false}, "then": "NON"}
+          ],
+          "default": "À_VALIDER"
+        },
+
+        "lcbft": {
+          "label": "Dispositif LCB-FT",
+          "values": ["OUI", "NON", "À_VALIDER"],
+          "rules": [
+            {"when": {"dispositif_lcbft": true}, "then": "OUI"},
+            {"when": {"dispositif_lcbft": false}, "then": "NON"}
+          ],
+          "default": "À_VALIDER"
+        },
+
+        "detection_ppe_sanctions": {
+          "label": "Détection PPE / gel / pays à risque",
+          "values": ["OUI", "NON", "À_VALIDER"],
+          "rules": [
+            {"when": {"dispositif_detection_global": true}, "then": "OUI"},
+            {"when": {"dispositif_detection_global": false}, "then": "NON"}
+          ],
+          "default": "À_VALIDER"
+        },
+
+        "formation_lcbft": {
+          "label": "Formation LCB-FT",
+          "values": ["OUI", "NON", "À_VALIDER"],
+          "rules": [
+            {"when": {"formation_lcbft_personnel": true}, "then": "OUI"},
+            {"when": {"formation_lcbft_personnel": false}, "then": "NON"}
+          ],
+          "default": "À_VALIDER"
+        },
+
+        "controle_interne": {
+          "label": "Contrôle interne",
+          "values": ["OUI", "PARTIEL", "À_VALIDER"],
+          "rules": [
+            {"when": {"dispositif_controle_interne": true}, "then": "OUI"},
+            {"when": {"dispositif_controle_interne": false}, "then": "PARTIEL"}
+          ],
+          "default": "À_VALIDER",
+          "note": "Convention métier : l'absence déclarée de dispositif est interprétée comme PARTIEL (jamais NON), car tout cabinet exerce au minimum un contrôle informel."
+        },
+
+        "pca": {
+          "label": "PCA",
+          "values": ["OUI", "NON", "À_VALIDER"],
+          "rules": [
+            {"when": {"pca_detaille": true}, "then": "OUI"},
+            {"when": {"pca_detaille": false}, "then": "NON"}
+          ],
+          "default": "À_VALIDER"
+        },
+
+        "rgpd": {
+          "label": "Politique RGPD",
+          "values": ["OUI", "PARTIEL", "À_VALIDER"],
+          "rules": [
+            {"when": {"politique_rgpd_diffusee": true, "registre_traitements": true}, "then": "OUI"},
+            {"when": {"or": [{"politique_rgpd_diffusee": false}, {"registre_traitements": false}]}, "then": "PARTIEL"}
+          ],
+          "default": "À_VALIDER"
+        },
+
+        "ia_conformite": {
+          "label": "IA (2026)",
+          "values": ["OUI", "NON", "N/A", "À_VALIDER"],
+          "rules": [
+            {"when": {"utilisation_ia": true, "respect_cadre_ia": true}, "then": "OUI"},
+            {"when": {"utilisation_ia": true, "respect_cadre_ia": false}, "then": "NON"},
+            {"when": {"utilisation_ia": false}, "then": "N/A"}
+          ],
+          "default": "À_VALIDER",
+          "note": "Si utilisation_ia=true et respect_cadre_ia=null, la règle bascule en À_VALIDER (manque d'info critique)."
+        }
+      }
+    },
+
+    "bloc_2": {
+      "label": "Distribution / Conseil",
+      "edi_sheets": ["Socle distributeur", "Entrée en relation (partiel)"],
+      "active_when": null,
+      "diagnostic_variables": {
+
+        "multi_assureurs": {
+          "label": "Multi-assureurs",
+          "values": ["OUI", "NON", "À_VALIDER"],
+          "rules": [
+            {"when": {"selection_multi_assureurs": true}, "then": "OUI"},
+            {"when": {"selection_multi_assureurs": false}, "then": "NON"}
+          ],
+          "default": "À_VALIDER"
+        },
+
+        "analyse_besoins_client": {
+          "label": "Analyse besoins client",
+          "values": ["OUI", "PARTIEL", "NON", "À_VALIDER"],
+          "rules": [
+            {"when": {"analyse_besoins_client": "oui"}, "then": "OUI"},
+            {"when": {"analyse_besoins_client": "partiel"}, "then": "PARTIEL"},
+            {"when": {"analyse_besoins_client": "non"}, "then": "NON"}
+          ],
+          "default": "À_VALIDER"
+        },
+
+        "analyse_situation_client": {
+          "label": "Analyse situation client",
+          "values": ["OUI", "PARTIEL", "À_VALIDER"],
+          "rules": [
+            {"when": {"analyse_situation_client": true}, "then": "OUI"},
+            {"when": {"analyse_situation_client": false}, "then": "PARTIEL"}
+          ],
+          "default": "À_VALIDER"
+        },
+
+        "recommandation_personnalisee": {
+          "label": "Recommandation personnalisée",
+          "values": ["OUI", "NON", "À_VALIDER"],
+          "rules": [
+            {"when": {"recommandation_personnalisee": true}, "then": "OUI"},
+            {"when": {"recommandation_personnalisee": false}, "then": "NON"}
+          ],
+          "default": "À_VALIDER"
+        },
+
+        "tracabilite_conseil": {
+          "label": "Traçabilité du conseil",
+          "values": ["OUI", "PARTIEL", "NON", "À_VALIDER"],
+          "rules": [
+            {"when": {"tracabilite_conseil": "forte"}, "then": "OUI"},
+            {"when": {"tracabilite_conseil": "moyenne"}, "then": "PARTIEL"},
+            {"when": {"tracabilite_conseil": "faible"}, "then": "NON"}
+          ],
+          "default": "À_VALIDER"
+        },
+
+        "adequation_produit_client": {
+          "label": "Adéquation produit / client",
+          "values": ["OUI", "PARTIEL", "À_VALIDER"],
+          "rules": [
+            {"when": {"adequation_produit_client": true}, "then": "OUI"},
+            {"when": {"adequation_produit_client": false}, "then": "PARTIEL"}
+          ],
+          "default": "À_VALIDER"
+        },
+
+        "vente_distance": {
+          "label": "Vente à distance",
+          "values": ["CONFORME", "NON", "N/A", "À_VALIDER"],
+          "rules": [
+            {"when": {"vente_distance": false}, "then": "N/A"},
+            {"when": {"vente_distance": true, "preuve_consentement": true, "archivage_consentement": true}, "then": "CONFORME"},
+            {"when": {"vente_distance": true, "or": [{"preuve_consentement": false}, {"archivage_consentement": false}]}, "then": "NON"}
+          ],
+          "default": "À_VALIDER",
+          "note": "Extension règle métier : si vente_distance=false → N/A (le sujet ne s'applique pas), pas NON."
+        }
+      }
+    },
+
+    "bloc_3": {
+      "label": "Connaissance client",
+      "edi_sheets": ["Entrée en relation", "Socle règlementaire (LCB-FT/KYC)"],
+      "active_when": null,
+      "diagnostic_variables": {
+
+        "identification_client": {
+          "label": "Identification client",
+          "values": ["OUI", "PARTIEL", "À_VALIDER"],
+          "rules": [
+            {"when": {"identification_client_complete": true}, "then": "OUI"},
+            {"when": {"identification_client_complete": false}, "then": "PARTIEL"}
+          ],
+          "default": "À_VALIDER"
+        },
+
+        "collecte_informations": {
+          "label": "Collecte informations",
+          "values": ["OUI", "PARTIEL", "NON", "À_VALIDER"],
+          "rules": [
+            {"when": {"collecte_informations_structuree": "oui"}, "then": "OUI"},
+            {"when": {"collecte_informations_structuree": "partielle"}, "then": "PARTIEL"},
+            {"when": {"collecte_informations_structuree": "non"}, "then": "NON"}
+          ],
+          "default": "À_VALIDER"
+        },
+
+        "verification_informations": {
+          "label": "Vérification informations",
+          "values": ["OUI", "NON", "À_VALIDER"],
+          "rules": [
+            {"when": {"verification_informations": true}, "then": "OUI"},
+            {"when": {"verification_informations": false}, "then": "NON"}
+          ],
+          "default": "À_VALIDER"
+        },
+
+        "mise_a_jour_client": {
+          "label": "Mise à jour client",
+          "values": ["OUI", "PARTIEL", "NON", "À_VALIDER"],
+          "rules": [
+            {"when": {"mise_a_jour_reguliere": true}, "then": "OUI"},
+            {"when": {"mise_a_jour_reguliere": false, "mise_a_jour_evenementielle": true}, "then": "PARTIEL"},
+            {"when": {"mise_a_jour_reguliere": false, "mise_a_jour_evenementielle": false}, "then": "NON"}
+          ],
+          "default": "À_VALIDER"
+        },
+
+        "suivi_client": {
+          "label": "Suivi client",
+          "values": ["OUI", "PARTIEL", "À_VALIDER"],
+          "rules": [
+            {"when": {"suivi_client": true}, "then": "OUI"},
+            {"when": {"suivi_client": false}, "then": "PARTIEL"}
+          ],
+          "default": "À_VALIDER"
+        },
+
+        "beneficiaires_effectifs": {
+          "label": "Bénéficiaires effectifs (2026)",
+          "values": ["OUI", "NON", "À_VALIDER"],
+          "rules": [
+            {"when": {"beneficiaires_effectifs_identifies": true}, "then": "OUI"},
+            {"when": {"beneficiaires_effectifs_identifies": false}, "then": "NON"}
+          ],
+          "default": "À_VALIDER"
+        }
+      }
+    },
+
+    "bloc_4": {
+      "label": "Système d'information",
+      "edi_sheets": ["Système d'information", "Socle règlementaire (sécu)"],
+      "active_when": null,
+      "diagnostic_variables": {
+
+        "stockage_centralise": {
+          "label": "Stockage centralisé",
+          "values": ["OUI", "NON", "À_VALIDER"],
+          "rules": [
+            {"when": {"stockage_donnees_centralise": true}, "then": "OUI"},
+            {"when": {"stockage_donnees_centralise": false}, "then": "NON"}
+          ],
+          "default": "À_VALIDER"
+        },
+
+        "donnees_diffusees": {
+          "label": "Données diffusées",
+          "values": ["OUI", "NON", "À_VALIDER"],
+          "rules": [
+            {"when": {"stockage_donnees_diffus": true}, "then": "OUI"},
+            {"when": {"stockage_donnees_diffus": false}, "then": "NON"}
+          ],
+          "default": "À_VALIDER",
+          "note": "Sémantique inversée : OUI ici = signal négatif (data hors du SI centralisé)."
+        },
+
+        "acces_individualises": {
+          "label": "Accès individualisés",
+          "values": ["OUI", "NON", "À_VALIDER"],
+          "rules": [
+            {"when": {"acces_individualise": true}, "then": "OUI"},
+            {"when": {"acces_individualise": false}, "then": "NON"}
+          ],
+          "default": "À_VALIDER"
+        },
+
+        "securite_acces": {
+          "label": "Sécurité accès",
+          "values": ["OUI", "PARTIEL", "À_VALIDER"],
+          "rules": [
+            {"when": {"authentification_renforcee": true}, "then": "OUI"},
+            {"when": {"authentification_renforcee": false}, "then": "PARTIEL"}
+          ],
+          "default": "À_VALIDER"
+        },
+
+        "sauvegardes": {
+          "label": "Sauvegardes",
+          "values": ["OUI", "PARTIEL", "NON", "À_VALIDER"],
+          "rules": [
+            {"when": {"sauvegarde_automatique": true}, "then": "OUI"},
+            {"when": {"sauvegarde_automatique": false, "sauvegarde_reguliere": true}, "then": "PARTIEL"},
+            {"when": {"sauvegarde_automatique": false, "sauvegarde_reguliere": false}, "then": "NON"}
+          ],
+          "default": "À_VALIDER"
+        },
+
+        "continuite_activite": {
+          "label": "Continuité activité",
+          "values": ["OUI", "NON", "À_VALIDER"],
+          "rules": [
+            {"when": {"plan_continuite": true}, "then": "OUI"},
+            {"when": {"plan_continuite": false}, "then": "NON"}
+          ],
+          "default": "À_VALIDER"
+        },
+
+        "filtrage_lcbft": {
+          "label": "Filtrage LCB-FT",
+          "values": ["OUI", "NON", "À_VALIDER"],
+          "rules": [
+            {"when": {"filtrage_lcbft": true}, "then": "OUI"},
+            {"when": {"filtrage_lcbft": false}, "then": "NON"}
+          ],
+          "default": "À_VALIDER"
+        },
+
+        "mise_a_jour_sanctions": {
+          "label": "Mise à jour sanctions",
+          "values": ["OUI", "NON", "À_VALIDER"],
+          "rules": [
+            {"when": {"mise_a_jour_listes_sanctions": true}, "then": "OUI"},
+            {"when": {"mise_a_jour_listes_sanctions": false}, "then": "NON"}
+          ],
+          "default": "À_VALIDER"
+        },
+
+        "sous_traitants_tic_critiques": {
+          "label": "Sous-traitants TIC critiques",
+          "values": ["OUI", "PARTIEL", "À_VALIDER"],
+          "rules": [
+            {"when": {"sous_traitants_tic_critiques_identifies": true}, "then": "OUI"},
+            {"when": {"sous_traitants_tic_critiques_identifies": false}, "then": "PARTIEL"}
+          ],
+          "default": "À_VALIDER"
+        }
+      }
+    },
+
+    "bloc_5": {
+      "label": "Données sensibles (santé)",
+      "edi_sheets": ["Traitement donnée de santé"],
+      "active_when": {"traitement_donnees_sante": true},
+      "inactive_result": "N/A",
+      "diagnostic_variables": {
+
+        "traitement_sante": {
+          "label": "Traitement santé",
+          "values": ["ACTIF", "INACTIF", "À_VALIDER"],
+          "rules": [
+            {"when": {"traitement_donnees_sante": true}, "then": "ACTIF"},
+            {"when": {"traitement_donnees_sante": false}, "then": "INACTIF"}
+          ],
+          "default": "À_VALIDER",
+          "note": "Diagnostic d'activation du bloc — calculé même quand le bloc est inactif."
+        },
+
+        "acces_restreint": {
+          "label": "Accès restreint",
+          "values": ["OUI", "NON", "À_VALIDER"],
+          "rules": [
+            {"when": {"acces_donnees_sante_restreint": true}, "then": "OUI"},
+            {"when": {"acces_donnees_sante_restreint": false}, "then": "NON"}
+          ],
+          "default": "À_VALIDER"
+        },
+
+        "zones_aeras_securisees": {
+          "label": "Zones sécurisées AERAS",
+          "values": ["OUI", "NON", "À_VALIDER"],
+          "rules": [
+            {"when": {"zones_aeras_securisees": true}, "then": "OUI"},
+            {"when": {"zones_aeras_securisees": false}, "then": "NON"}
+          ],
+          "default": "À_VALIDER"
+        }
+      }
+    },
+
+    "bloc_6": {
+      "label": "Sous-délégation",
+      "edi_sheets": ["Subdélégation"],
+      "active_when": {"sous_delegation": true},
+      "inactive_result": "N/A",
+      "diagnostic_variables": {
+
+        "sous_delegation_active": {
+          "label": "Sous-délégation",
+          "values": ["ACTIF", "INACTIF", "À_VALIDER"],
+          "rules": [
+            {"when": {"sous_delegation": true}, "then": "ACTIF"},
+            {"when": {"sous_delegation": false}, "then": "INACTIF"}
+          ],
+          "default": "À_VALIDER"
+        },
+
+        "contrat_subdelegation": {
+          "label": "Contrat subdélégation",
+          "values": ["OUI", "NON", "À_VALIDER"],
+          "rules": [
+            {"when": {"contrat_subdelegation": true}, "then": "OUI"},
+            {"when": {"contrat_subdelegation": false}, "then": "NON"}
+          ],
+          "default": "À_VALIDER"
+        },
+
+        "supervision": {
+          "label": "Supervision",
+          "values": ["OUI", "NON", "À_VALIDER"],
+          "rules": [
+            {"when": {"supervision_subdelegation": true}, "then": "OUI"},
+            {"when": {"supervision_subdelegation": false}, "then": "NON"}
+          ],
+          "default": "À_VALIDER"
+        },
+
+        "controle_activite_deleguee": {
+          "label": "Contrôle activité déléguée",
+          "values": ["OUI", "NON", "À_VALIDER"],
+          "rules": [
+            {"when": {"controle_subdelegation": true}, "then": "OUI"},
+            {"when": {"controle_subdelegation": false}, "then": "NON"}
+          ],
+          "default": "À_VALIDER"
+        },
+
+        "ia_subdelegataire": {
+          "label": "IA subdélégataire (2026)",
+          "values": ["CONFORME", "NON", "À_VALIDER"],
+          "rules": [
+            {"when": {"controle_ia_subdelegataire": true}, "then": "CONFORME"},
+            {"when": {"controle_ia_subdelegataire": false}, "then": "NON"}
+          ],
+          "default": "À_VALIDER"
+        }
+      }
+    },
+
+    "bloc_7": {
+      "label": "Encaissement",
+      "edi_sheets": ["Délégation d'encaissement-décaissement"],
+      "active_when": {"encaissement_fonds": true},
+      "inactive_result": "N/A",
+      "diagnostic_variables": {
+
+        "encaissement_actif": {
+          "label": "Encaissement",
+          "values": ["ACTIF", "INACTIF", "À_VALIDER"],
+          "rules": [
+            {"when": {"encaissement_fonds": true}, "then": "ACTIF"},
+            {"when": {"encaissement_fonds": false}, "then": "INACTIF"}
+          ],
+          "default": "À_VALIDER"
+        },
+
+        "transit_fonds": {
+          "label": "Transit fonds",
+          "values": ["OUI", "NON", "À_VALIDER"],
+          "rules": [
+            {"when": {"transit_fonds": true}, "then": "OUI"},
+            {"when": {"transit_fonds": false}, "then": "NON"}
+          ],
+          "default": "À_VALIDER"
+        },
+
+        "tracabilite_flux": {
+          "label": "Traçabilité flux",
+          "values": ["OUI", "NON", "À_VALIDER"],
+          "rules": [
+            {"when": {"tracabilite_flux": true}, "then": "OUI"},
+            {"when": {"tracabilite_flux": false}, "then": "NON"}
+          ],
+          "default": "À_VALIDER"
+        },
+
+        "separation_comptes": {
+          "label": "Séparation comptes",
+          "values": ["OUI", "NON", "À_VALIDER"],
+          "rules": [
+            {"when": {"separation_comptes": true}, "then": "OUI"},
+            {"when": {"separation_comptes": false}, "then": "NON"}
+          ],
+          "default": "À_VALIDER"
+        },
+
+        "controle_flux": {
+          "label": "Contrôle flux",
+          "values": ["OUI", "NON", "À_VALIDER"],
+          "rules": [
+            {"when": {"controle_flux": true}, "then": "OUI"},
+            {"when": {"controle_flux": false}, "then": "NON"}
+          ],
+          "default": "À_VALIDER"
+        }
+      }
+    },
+
+    "bloc_8": {
+      "label": "Incidents / Pilotage",
+      "edi_sheets": ["Socle règlementaire (gouvernance)", "Système d'information (incidents)"],
+      "active_when": null,
+      "diagnostic_variables": {
+
+        "identification_incidents": {
+          "label": "Identification incidents",
+          "values": ["OUI", "PARTIEL", "À_VALIDER"],
+          "rules": [
+            {"when": {"incidents_identifies": true}, "then": "OUI"},
+            {"when": {"incidents_identifies": false}, "then": "PARTIEL"}
+          ],
+          "default": "À_VALIDER"
+        },
+
+        "signalement": {
+          "label": "Signalement",
+          "values": ["OUI", "PARTIEL", "À_VALIDER"],
+          "rules": [
+            {"when": {"canal_signalement": true}, "then": "OUI"},
+            {"when": {"canal_signalement": false}, "then": "PARTIEL"}
+          ],
+          "default": "À_VALIDER"
+        },
+
+        "traitement_incidents": {
+          "label": "Traitement incidents",
+          "values": ["OUI", "PARTIEL", "NON", "À_VALIDER"],
+          "rules": [
+            {"when": {"traitement_structure": "oui"}, "then": "OUI"},
+            {"when": {"traitement_structure": "partiel"}, "then": "PARTIEL"},
+            {"when": {"traitement_structure": "non"}, "then": "NON"}
+          ],
+          "default": "À_VALIDER"
+        },
+
+        "suivi_incidents": {
+          "label": "Suivi incidents",
+          "values": ["OUI", "NON", "À_VALIDER"],
+          "rules": [
+            {"when": {"suivi_incidents": true}, "then": "OUI"},
+            {"when": {"suivi_incidents": false}, "then": "NON"}
+          ],
+          "default": "À_VALIDER"
+        },
+
+        "actions_correctives": {
+          "label": "Actions correctives",
+          "values": ["OUI", "PARTIEL", "À_VALIDER"],
+          "rules": [
+            {"when": {"actions_correctives": true}, "then": "OUI"},
+            {"when": {"actions_correctives": false}, "then": "PARTIEL"}
+          ],
+          "default": "À_VALIDER"
+        },
+
+        "amelioration_continue": {
+          "label": "Amélioration continue",
+          "values": ["OUI", "PARTIEL", "À_VALIDER"],
+          "rules": [
+            {"when": {"amelioration_continue": true}, "then": "OUI"},
+            {"when": {"amelioration_continue": false}, "then": "PARTIEL"}
+          ],
+          "default": "À_VALIDER"
+        },
+
+        "maturite_operationnelle": {
+          "label": "Maturité opérationnelle",
+          "values": ["ÉLEVÉE", "INTERMÉDIAIRE", "FAIBLE", "À_VALIDER"],
+          "rules": [
+            {"when": {"traitement_structure": "oui", "suivi_incidents": true, "actions_correctives": true}, "then": "ÉLEVÉE"},
+            {"when": {"any_of_at_least": {"vars": [["traitement_structure", "oui"], ["suivi_incidents", true], ["actions_correctives", true]], "min": 1}}, "then": "INTERMÉDIAIRE"}
+          ],
+          "default": "FAIBLE",
+          "note": "Variable composite : ÉLEVÉE si toutes les conditions, INTERMÉDIAIRE si au moins une, FAIBLE sinon."
+        }
+      }
+    }
+  }
+}

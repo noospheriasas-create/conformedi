@@ -1,0 +1,123 @@
+/**
+ * ConformEDI - Moteur d'évaluation des règles
+ * À coller dans un Code node n8n (mode "Run once for all items").
+ *
+ * INPUT attendu (dans $input.first().json) :
+ *   - inputs    : objet {bloc_1: {...}, bloc_2: {...}, ...} contenant les variables atomiques extraites
+ *   - referential : contenu de conformedi_rules_engine.json
+ *
+ * OUTPUT : objet {bloc_1: {var1: "OUI", var2: "PARTIEL", ...}, ..., _trace: [...]}
+ *   Le _trace liste les décisions pour debug/audit.
+ */
+
+function evaluateCondition(cond, vars) {
+  if (cond === null || cond === undefined) return false;
+
+  // Cas OR
+  if (cond.or && Array.isArray(cond.or)) {
+    return cond.or.some(sub => evaluateCondition(sub, vars));
+  }
+  // Cas AND explicite
+  if (cond.and && Array.isArray(cond.and)) {
+    return cond.and.every(sub => evaluateCondition(sub, vars));
+  }
+  // Cas any_of_at_least : au moins N variables ont leur valeur cible
+  if (cond.any_of_at_least) {
+    const { vars: pairs, min } = cond.any_of_at_least;
+    const matches = pairs.filter(([k, v]) => vars[k] === v).length;
+    return matches >= min;
+  }
+  // Cas objet littéral (AND implicite)
+  return Object.entries(cond).every(([key, expected]) => {
+    if (key === "or" || key === "and" || key === "any_of_at_least") return true; // déjà géré
+    return vars[key] === expected;
+  });
+}
+
+function evaluateDiagnosticVariable(varDef, vars, varName) {
+  for (const rule of varDef.rules) {
+    if (evaluateCondition(rule.when, vars)) {
+      return { value: rule.then, matched_rule: rule, fallback: false };
+    }
+  }
+  return {
+    value: varDef.default,
+    matched_rule: null,
+    fallback: true,
+    reason: "Aucune règle ne match (données manquantes ou contradictoires)"
+  };
+}
+
+function evaluateBlock(blockKey, blockDef, blockInputs) {
+  const result = {};
+  const trace = [];
+
+  // Vérifier si le bloc est actif
+  if (blockDef.active_when) {
+    const isActive = evaluateCondition(blockDef.active_when, blockInputs);
+    if (!isActive) {
+      // Mais on évalue quand même la variable "_active" si elle existe
+      const inactiveValue = blockDef.inactive_result || "N/A";
+      for (const [varName, varDef] of Object.entries(blockDef.diagnostic_variables)) {
+        // Les variables d'activation (type ACTIF/INACTIF) sont toujours évaluées
+        const isActivationVar = varDef.values && varDef.values.includes("INACTIF");
+        if (isActivationVar) {
+          const evaluated = evaluateDiagnosticVariable(varDef, blockInputs, varName);
+          result[varName] = evaluated.value;
+          trace.push({ block: blockKey, variable: varName, value: evaluated.value, source: "activation_var" });
+        } else {
+          result[varName] = inactiveValue;
+          trace.push({ block: blockKey, variable: varName, value: inactiveValue, source: "block_inactive" });
+        }
+      }
+      return { result, trace, active: false };
+    }
+  }
+
+  // Bloc actif : évaluer toutes les variables
+  for (const [varName, varDef] of Object.entries(blockDef.diagnostic_variables)) {
+    const evaluated = evaluateDiagnosticVariable(varDef, blockInputs, varName);
+    result[varName] = evaluated.value;
+    trace.push({
+      block: blockKey,
+      variable: varName,
+      value: evaluated.value,
+      fallback: evaluated.fallback,
+      matched: evaluated.matched_rule ? "rule" : "default"
+    });
+  }
+  return { result, trace, active: true };
+}
+
+function evaluateAll(inputs, referential) {
+  const output = { diagnostic: {}, _trace: [], _meta: { version: referential.version, evaluated_at: new Date().toISOString() } };
+
+  for (const [blockKey, blockDef] of Object.entries(referential.blocks)) {
+    const blockInputs = inputs[blockKey] || {};
+    const { result, trace, active } = evaluateBlock(blockKey, blockDef, blockInputs);
+    output.diagnostic[blockKey] = { label: blockDef.label, active, variables: result };
+    output._trace.push(...trace);
+  }
+
+  // Métriques de couverture
+  const totalVars = output._trace.length;
+  const fallbacks = output._trace.filter(t => t.fallback).length;
+  const inactives = output._trace.filter(t => t.source === "block_inactive").length;
+  output._meta.coverage = {
+    total_diagnostic_vars: totalVars,
+    resolved: totalVars - fallbacks - inactives,
+    fallback_a_valider: fallbacks,
+    inactive: inactives,
+    resolution_rate: ((totalVars - fallbacks - inactives) / totalVars * 100).toFixed(1) + "%"
+  };
+
+  return output;
+}
+
+// === Entrée n8n ===
+const input = $input.first().json;
+const inputs = input.inputs;        // variables atomiques extraites par Claude (étape précédente)
+const referential = input.referential; // contenu de conformedi_rules_engine.json
+
+const result = evaluateAll(inputs, referential);
+return [{ json: result }];
