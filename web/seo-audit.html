@@ -1,0 +1,716 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Audit SEO — ConformEDI</title>
+<meta name="description" content="Lancez un audit SEO complet d'une URL : autorité de domaine, trafic organique, mots-clés, backlinks et Core Web Vitals." />
+<style>
+  :root {
+    --bg: #0b1020;
+    --bg-soft: #121a30;
+    --card: #151f38;
+    --card-2: #1b2745;
+    --border: #26324f;
+    --text: #eef2ff;
+    --muted: #97a3c4;
+    --brand: #6d8bff;
+    --brand-2: #8b5cf6;
+    --good: #22c55e;
+    --warn: #f59e0b;
+    --bad: #ef4444;
+    --radius: 16px;
+    --shadow: 0 12px 40px rgba(0,0,0,.35);
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f4f6fc;
+      --bg-soft: #ffffff;
+      --card: #ffffff;
+      --card-2: #f6f8ff;
+      --border: #e4e9f5;
+      --text: #101a33;
+      --muted: #5b678a;
+      --shadow: 0 12px 40px rgba(30,50,110,.10);
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background:
+      radial-gradient(900px 500px at 85% -10%, rgba(139,92,246,.22), transparent 60%),
+      radial-gradient(800px 500px at -5% 0%, rgba(109,139,255,.20), transparent 55%),
+      var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 28px 20px 64px; }
+
+  /* Header */
+  header.top { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 40px; }
+  .brand { display: flex; align-items: center; gap: 12px; font-weight: 700; letter-spacing: .2px; }
+  .logo {
+    width: 38px; height: 38px; border-radius: 11px;
+    background: linear-gradient(135deg, var(--brand), var(--brand-2));
+    display: grid; place-items: center; color: #fff; font-size: 20px;
+    box-shadow: 0 6px 18px rgba(109,139,255,.5);
+  }
+  .brand small { display: block; font-weight: 500; color: var(--muted); font-size: 12px; }
+  .settings-btn {
+    background: transparent; color: var(--muted); border: 1px solid var(--border);
+    border-radius: 10px; padding: 9px 12px; cursor: pointer; font-size: 13px; display: flex; gap: 7px; align-items: center;
+  }
+  .settings-btn:hover { color: var(--text); border-color: var(--brand); }
+
+  /* Hero */
+  .hero { text-align: center; margin: 8px auto 34px; max-width: 760px; }
+  .hero h1 { font-size: clamp(30px, 5vw, 46px); line-height: 1.08; margin: 0 0 14px; letter-spacing: -0.5px; }
+  .hero h1 .grad { background: linear-gradient(120deg, var(--brand), var(--brand-2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .hero p { color: var(--muted); font-size: 17px; margin: 0 auto; max-width: 620px; }
+
+  /* Form */
+  form.audit {
+    display: flex; gap: 10px; background: var(--card); border: 1px solid var(--border);
+    border-radius: 999px; padding: 8px; margin: 26px auto 12px; max-width: 720px;
+    box-shadow: var(--shadow); flex-wrap: wrap;
+  }
+  form.audit .field { flex: 1 1 320px; display: flex; align-items: center; gap: 10px; padding-left: 16px; min-width: 0; }
+  form.audit .field svg { flex: none; color: var(--muted); }
+  form.audit input[type="url"] {
+    flex: 1; min-width: 0; background: transparent; border: none; outline: none;
+    color: var(--text); font-size: 16px; padding: 14px 4px;
+  }
+  form.audit input::placeholder { color: var(--muted); }
+  form.audit button.go {
+    flex: none; border: none; cursor: pointer; color: #fff; font-weight: 600; font-size: 15px;
+    padding: 0 26px; border-radius: 999px; min-height: 50px;
+    background: linear-gradient(120deg, var(--brand), var(--brand-2));
+    box-shadow: 0 8px 22px rgba(109,139,255,.45); transition: transform .06s ease, filter .2s;
+  }
+  form.audit button.go:hover { filter: brightness(1.07); }
+  form.audit button.go:active { transform: translateY(1px); }
+  form.audit button.go:disabled { opacity: .6; cursor: default; }
+  .opts { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; color: var(--muted); font-size: 13px; margin-bottom: 6px; }
+  .opts label { display: inline-flex; align-items: center; gap: 7px; }
+  .opts select {
+    background: var(--card-2); color: var(--text); border: 1px solid var(--border);
+    border-radius: 8px; padding: 6px 10px; font-size: 13px;
+  }
+  .mode-note { text-align: center; font-size: 12.5px; color: var(--muted); margin-top: 4px; }
+  .mode-note b { color: var(--brand); }
+
+  /* States */
+  .hidden { display: none !important; }
+  .loading { text-align: center; padding: 60px 0; color: var(--muted); }
+  .spinner {
+    width: 46px; height: 46px; border-radius: 50%; margin: 0 auto 18px;
+    border: 4px solid var(--border); border-top-color: var(--brand); animation: spin 1s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .steps { font-size: 13px; }
+  .error {
+    max-width: 720px; margin: 20px auto; background: rgba(239,68,68,.12); border: 1px solid rgba(239,68,68,.4);
+    color: #fecaca; padding: 14px 18px; border-radius: 12px; font-size: 14px;
+  }
+  @media (prefers-color-scheme: light) { .error { color: #b91c1c; } }
+
+  /* Results */
+  .results { margin-top: 12px; }
+  .result-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin: 8px 0 22px; }
+  .result-head .favicon { width: 34px; height: 34px; border-radius: 8px; background: var(--card-2); border: 1px solid var(--border); }
+  .result-head h2 { margin: 0; font-size: 22px; }
+  .result-head .sub { color: var(--muted); font-size: 13px; }
+  .pill { font-size: 12px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); }
+
+  .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); }
+  .card h3 { margin: 0 0 4px; font-size: 13px; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); font-weight: 600; }
+  .col-3 { grid-column: span 3; }
+  .col-4 { grid-column: span 4; }
+  .col-5 { grid-column: span 5; }
+  .col-6 { grid-column: span 6; }
+  .col-7 { grid-column: span 7; }
+  .col-8 { grid-column: span 8; }
+  .col-12 { grid-column: span 12; }
+  @media (max-width: 860px) {
+    .col-3, .col-4, .col-5, .col-6, .col-7, .col-8 { grid-column: span 12; }
+  }
+
+  .metric { font-size: 30px; font-weight: 700; line-height: 1.1; margin-top: 8px; }
+  .metric small { font-size: 13px; color: var(--muted); font-weight: 500; margin-left: 6px; }
+  .delta { font-size: 12.5px; margin-top: 6px; }
+  .delta.up { color: var(--good); }
+  .delta.down { color: var(--bad); }
+
+  /* Score gauge */
+  .score-card { display: flex; align-items: center; gap: 22px; }
+  .gauge { position: relative; width: 132px; height: 132px; flex: none; }
+  .gauge svg { transform: rotate(-90deg); }
+  .gauge .val { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; }
+  .gauge .val b { font-size: 34px; }
+  .gauge .val span { display: block; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+  .score-legend { font-size: 13.5px; color: var(--muted); }
+  .score-legend .grade { font-size: 20px; font-weight: 700; color: var(--text); }
+
+  /* Trend chart */
+  .chart-wrap { margin-top: 10px; overflow-x: auto; }
+  canvas { display: block; width: 100%; height: 130px; }
+
+  /* Bars */
+  .bar-row { display: flex; align-items: center; gap: 10px; margin: 10px 0; font-size: 13px; }
+  .bar-row .lbl { width: 110px; color: var(--muted); flex: none; }
+  .bar-track { flex: 1; height: 9px; background: var(--card-2); border-radius: 6px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 6px; background: linear-gradient(90deg, var(--brand), var(--brand-2)); }
+  .bar-row .num { width: 64px; text-align: right; flex: none; }
+
+  /* Table */
+  .tbl-scroll { overflow-x: auto; margin-top: 6px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; min-width: 520px; }
+  th, td { text-align: left; padding: 11px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  th { color: var(--muted); font-weight: 600; font-size: 11.5px; text-transform: uppercase; letter-spacing: .6px; }
+  td.kw { white-space: normal; max-width: 260px; }
+  td.num, th.num { text-align: right; }
+  .pos { display: inline-block; min-width: 26px; text-align: center; padding: 2px 7px; border-radius: 6px; font-weight: 600; font-size: 12px; }
+  .pos.top { background: rgba(34,197,94,.16); color: var(--good); }
+  .pos.mid { background: rgba(245,158,11,.16); color: var(--warn); }
+  .pos.low { background: rgba(148,163,184,.16); color: var(--muted); }
+
+  /* Recommendations */
+  .rec { display: flex; gap: 12px; padding: 13px 0; border-bottom: 1px solid var(--border); }
+  .rec:last-child { border-bottom: none; }
+  .rec .ico { flex: none; width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; font-size: 15px; }
+  .rec.crit .ico { background: rgba(239,68,68,.15); }
+  .rec.warn .ico { background: rgba(245,158,11,.15); }
+  .rec.ok .ico { background: rgba(34,197,94,.15); }
+  .rec .body b { display: block; font-size: 14px; }
+  .rec .body span { font-size: 13px; color: var(--muted); }
+
+  /* CWV */
+  .cwv-item { display: flex; justify-content: space-between; align-items: baseline; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+  .cwv-item:last-child { border-bottom: none; }
+  .cwv-item .v { font-weight: 700; }
+  .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 7px; }
+  .dot.g { background: var(--good); } .dot.o { background: var(--warn); } .dot.r { background: var(--bad); }
+
+  footer { text-align: center; color: var(--muted); font-size: 12.5px; margin-top: 46px; }
+  footer a { color: var(--brand); text-decoration: none; }
+
+  /* Settings dialog */
+  dialog {
+    border: 1px solid var(--border); background: var(--card); color: var(--text);
+    border-radius: var(--radius); padding: 24px; max-width: 480px; width: 92%; box-shadow: var(--shadow);
+  }
+  dialog::backdrop { background: rgba(4,8,20,.6); backdrop-filter: blur(3px); }
+  dialog h3 { margin: 0 0 6px; }
+  dialog p { color: var(--muted); font-size: 13.5px; margin: 0 0 16px; }
+  dialog label { display: block; font-size: 13px; margin-bottom: 6px; color: var(--muted); }
+  dialog input {
+    width: 100%; background: var(--card-2); border: 1px solid var(--border); color: var(--text);
+    border-radius: 10px; padding: 11px 12px; font-size: 14px; outline: none;
+  }
+  dialog input:focus { border-color: var(--brand); }
+  .dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+  .btn { border-radius: 10px; padding: 10px 16px; font-size: 14px; cursor: pointer; border: 1px solid var(--border); background: transparent; color: var(--text); }
+  .btn.primary { background: linear-gradient(120deg, var(--brand), var(--brand-2)); border: none; color: #fff; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="brand">
+      <div class="logo">◎</div>
+      <div>ConformEDI<small>Audit SEO</small></div>
+    </div>
+    <button class="settings-btn" id="settingsBtn" type="button">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      Source de données
+    </button>
+  </header>
+
+  <section class="hero">
+    <h1>Analysez le <span class="grad">SEO</span> de n'importe quelle URL</h1>
+    <p>Autorité de domaine, trafic organique, mots-clés positionnés, backlinks et performance web — un diagnostic complet en quelques secondes.</p>
+  </section>
+
+  <form class="audit" id="auditForm">
+    <div class="field">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <input type="url" id="urlInput" name="url" placeholder="https://exemple.com" autocomplete="off" required />
+    </div>
+    <button class="go" type="submit" id="goBtn">Lancer l'audit</button>
+  </form>
+
+  <div class="opts">
+    <label>Pays
+      <select id="country">
+        <option value="2250" data-lang="fr">France</option>
+        <option value="2840" data-lang="en">États-Unis</option>
+        <option value="2826" data-lang="en">Royaume-Uni</option>
+        <option value="2276" data-lang="de">Allemagne</option>
+        <option value="2724" data-lang="es">Espagne</option>
+        <option value="2380" data-lang="it">Italie</option>
+        <option value="2124" data-lang="en">Canada</option>
+        <option value="2056" data-lang="fr">Belgique</option>
+      </select>
+    </label>
+  </div>
+  <div class="mode-note" id="modeNote"></div>
+
+  <div id="loading" class="loading hidden">
+    <div class="spinner"></div>
+    <div class="steps" id="steps">Analyse du domaine…</div>
+  </div>
+
+  <div id="errorBox" class="error hidden"></div>
+
+  <section id="results" class="results hidden">
+    <div class="result-head">
+      <img class="favicon" id="favicon" alt="" />
+      <div>
+        <h2 id="domainName">—</h2>
+        <div class="sub" id="domainSub">—</div>
+      </div>
+      <span class="pill" id="scopePill"></span>
+      <span class="pill" id="sourcePill"></span>
+    </div>
+
+    <div class="grid">
+      <!-- Score -->
+      <div class="card col-4">
+        <h3>Score de santé SEO</h3>
+        <div class="score-card">
+          <div class="gauge">
+            <svg width="132" height="132" viewBox="0 0 132 132">
+              <circle cx="66" cy="66" r="56" fill="none" stroke="var(--card-2)" stroke-width="13"/>
+              <circle id="gaugeArc" cx="66" cy="66" r="56" fill="none" stroke="url(#gaugeGrad)" stroke-width="13" stroke-linecap="round" stroke-dasharray="352" stroke-dashoffset="352"/>
+              <defs>
+                <linearGradient id="gaugeGrad" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0" stop-color="#6d8bff"/><stop offset="1" stop-color="#8b5cf6"/>
+                </linearGradient>
+              </defs>
+            </svg>
+            <div class="val"><b id="scoreVal">0</b><span>/ 100</span></div>
+          </div>
+          <div class="score-legend">
+            <div class="grade" id="scoreGrade">—</div>
+            <div id="scoreText">Basé sur l'autorité, le trafic, les backlinks et la vitesse.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- KPI cards -->
+      <div class="card col-4">
+        <h3>Autorité de domaine</h3>
+        <div class="metric"><span id="daVal">—</span><small>/ 100</small></div>
+        <div class="delta" id="daHint">Domain Authority estimé</div>
+      </div>
+      <div class="card col-4">
+        <h3>Trafic organique / mois</h3>
+        <div class="metric" id="trafficVal">—</div>
+        <div class="delta" id="trafficDelta"></div>
+      </div>
+
+      <!-- Trend -->
+      <div class="card col-8">
+        <h3>Évolution du trafic organique (12 mois)</h3>
+        <div class="chart-wrap"><canvas id="trendChart" width="720" height="130"></canvas></div>
+      </div>
+
+      <!-- Keyword distribution -->
+      <div class="card col-4">
+        <h3>Mots-clés positionnés</h3>
+        <div class="metric" id="kwVal">—</div>
+        <div style="margin-top:14px" id="posBars"></div>
+      </div>
+
+      <!-- Backlinks -->
+      <div class="card col-4">
+        <h3>Backlinks</h3>
+        <div class="metric" id="blVal">—</div>
+        <div class="delta" id="refDomains"></div>
+        <div style="margin-top:14px" id="followBars"></div>
+      </div>
+
+      <!-- Core Web Vitals -->
+      <div class="card col-4">
+        <h3>Core Web Vitals (mobile)</h3>
+        <div id="cwvList"></div>
+      </div>
+
+      <!-- Recommendations -->
+      <div class="card col-4">
+        <h3>Recommandations prioritaires</h3>
+        <div id="recos"></div>
+      </div>
+
+      <!-- Top keywords table -->
+      <div class="card col-12">
+        <h3>Top mots-clés organiques</h3>
+        <div class="tbl-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Mot-clé</th>
+                <th class="num">Position</th>
+                <th class="num">Volume</th>
+                <th class="num">CPC</th>
+                <th class="num">Difficulté</th>
+                <th class="num">Trafic est.</th>
+              </tr>
+            </thead>
+            <tbody id="kwBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      Données SEO fournies par l'API Ubersuggest · Audit généré le <span id="genDate"></span> ·
+      <a href="#" id="rerun">Nouvel audit</a>
+    </footer>
+  </section>
+
+  <footer id="pageFoot">
+    ConformEDI · Noospheria SAS — cet outil interroge l'API Ubersuggest via votre backend n8n.
+  </footer>
+</div>
+
+<!-- Settings dialog -->
+<dialog id="settingsDlg">
+  <h3>Source de données</h3>
+  <p>Renseignez l'URL du webhook n8n qui interroge l'API Ubersuggest et renvoie le JSON d'audit. Laissez vide pour utiliser le <b>mode démo</b> (données d'exemple).</p>
+  <label for="endpointInput">Endpoint webhook (POST)</label>
+  <input type="url" id="endpointInput" placeholder="https://n8n.votre-domaine.fr/webhook/seo-audit" />
+  <div class="dialog-actions">
+    <button class="btn" id="clearEndpoint" type="button">Mode démo</button>
+    <button class="btn primary" id="saveEndpoint" type="button">Enregistrer</button>
+  </div>
+</dialog>
+
+<script>
+(function () {
+  "use strict";
+
+  var LS_KEY = "conformedi_seo_endpoint";
+  var $ = function (id) { return document.getElementById(id); };
+  var fmt = function (n) {
+    if (n == null || isNaN(n)) return "—";
+    if (n >= 1e6) return (n / 1e6).toFixed(n >= 1e7 ? 0 : 1) + " M";
+    if (n >= 1e3) return (n / 1e3).toFixed(n >= 1e4 ? 0 : 1) + " k";
+    return String(Math.round(n));
+  };
+  var esc = function (s) { var d = document.createElement("div"); d.textContent = s == null ? "" : String(s); return d.innerHTML; };
+
+  /* ---------- Endpoint / mode ---------- */
+  function getEndpoint() { return (localStorage.getItem(LS_KEY) || "").trim(); }
+  function refreshModeNote() {
+    var ep = getEndpoint();
+    $("modeNote").innerHTML = ep
+      ? 'Mode <b>connecté</b> · les audits sont exécutés via votre backend n8n.'
+      : 'Mode <b>démo</b> · données d\'exemple. Configurez un webhook n8n via « Source de données » pour des résultats réels.';
+  }
+
+  /* ---------- Settings dialog ---------- */
+  var dlg = $("settingsDlg");
+  $("settingsBtn").addEventListener("click", function () {
+    $("endpointInput").value = getEndpoint();
+    if (typeof dlg.showModal === "function") dlg.showModal(); else dlg.setAttribute("open", "");
+  });
+  $("saveEndpoint").addEventListener("click", function () {
+    var v = $("endpointInput").value.trim();
+    if (v) localStorage.setItem(LS_KEY, v); else localStorage.removeItem(LS_KEY);
+    dlg.close(); refreshModeNote();
+  });
+  $("clearEndpoint").addEventListener("click", function () {
+    localStorage.removeItem(LS_KEY); $("endpointInput").value = ""; dlg.close(); refreshModeNote();
+  });
+
+  /* ---------- Form submit ---------- */
+  $("auditForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var raw = $("urlInput").value.trim();
+    if (!raw) return;
+    if (!/^https?:\/\//i.test(raw)) { raw = "https://" + raw; $("urlInput").value = raw; }
+    var sel = $("country");
+    var opt = sel.options[sel.selectedIndex];
+    runAudit(raw, { locId: sel.value, lang: opt.getAttribute("data-lang"), country: opt.textContent });
+  });
+  $("rerun").addEventListener("click", function (e) { e.preventDefault(); $("results").classList.add("hidden"); $("urlInput").focus(); window.scrollTo({ top: 0, behavior: "smooth" }); });
+
+  function domainOf(url) { try { return new URL(url).hostname.replace(/^www\./, ""); } catch (_) { return url.replace(/^https?:\/\//, "").replace(/\/.*/, ""); } }
+
+  /* ---------- Audit orchestration ---------- */
+  function runAudit(url, opts) {
+    $("errorBox").classList.add("hidden");
+    $("results").classList.add("hidden");
+    $("loading").classList.remove("hidden");
+    $("goBtn").disabled = true;
+    var stepEls = ["Résolution du domaine…", "Analyse de l'autorité et des backlinks…", "Extraction des mots-clés organiques…", "Mesure des Core Web Vitals…", "Compilation du rapport…"];
+    var i = 0; $("steps").textContent = stepEls[0];
+    var ticker = setInterval(function () { i = (i + 1) % stepEls.length; $("steps").textContent = stepEls[i]; }, 700);
+
+    var endpoint = getEndpoint();
+    var done = function (data) { clearInterval(ticker); $("loading").classList.add("hidden"); $("goBtn").disabled = false; render(url, opts, data); };
+    var fail = function (msg) {
+      clearInterval(ticker); $("loading").classList.add("hidden"); $("goBtn").disabled = false;
+      var box = $("errorBox"); box.classList.remove("hidden");
+      box.innerHTML = esc(msg) + '<br><span style="opacity:.8">Le mode démo a été affiché à la place.</span>';
+      render(url, opts, demoData(domainOf(url)));
+    };
+
+    if (!endpoint) {
+      setTimeout(function () { done(demoData(domainOf(url))); }, 1500 + Math.random() * 900);
+      return;
+    }
+    fetch(endpoint, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: url, domain: domainOf(url), locId: Number(opts.locId), language: opts.lang })
+    })
+      .then(function (r) { if (!r.ok) throw new Error("Le webhook a répondu " + r.status); return r.json(); })
+      .then(function (d) { done(normalize(d, domainOf(url))); })
+      .catch(function (err) { fail("Connexion au backend impossible : " + err.message); });
+  }
+
+  /* ---------- Normalize a real Ubersuggest domain_overview payload ---------- */
+  function normalize(d, domain) {
+    // Accept either { overview, pagespeed } wrapper or a raw domain_overview object.
+    var ov = d.overview || d.domain_overview || d;
+    var months = ov.domainTraffic ? Object.keys(ov.domainTraffic).sort() : [];
+    var trend = months.slice(-12).map(function (m) { return ov.domainTraffic[m].searchTraffic || 0; });
+    var kws = (ov.organicKeywords || d.organicKeywords || []).slice(0, 12).map(function (k) {
+      return { keyword: k.keyword, position: k.position, volume: k.volume, cpc: k.cpcDollars != null ? k.cpcDollars : k.cpc, sd: k.sd, traffic: k.traffic };
+    });
+    var cwv = d.pagespeed || d.cwv || null;
+    return {
+      domain: ov.domain || domain,
+      da: ov.domainAuthority,
+      traffic: ov.traffic,
+      organic: ov.organic,
+      backlinks: ov.backlinks,
+      refDomains: ov.refDomains,
+      follow: ov.follow, noFollow: ov.noFollow,
+      trend: trend.length ? trend : null,
+      keywords: kws,
+      cwv: cwv,
+      _real: true
+    };
+  }
+
+  /* ---------- Deterministic demo data ---------- */
+  function seedFrom(str) { var h = 2166136261; for (var i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0); }
+  function rng(seed) { var s = seed || 1; return function () { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
+
+  function demoData(domain) {
+    var r = rng(seedFrom(domain));
+    var da = 22 + Math.floor(r() * 60);
+    var base = Math.floor(200 * Math.pow(10, r() * 3.2)); // 200 .. ~300k
+    var trend = []; var v = base * (0.6 + r() * 0.5);
+    for (var m = 0; m < 12; m++) { v = Math.max(50, v * (0.9 + r() * 0.28)); trend.push(Math.round(v)); }
+    var traffic = trend[trend.length - 1];
+    var organic = Math.round(traffic * (1.4 + r() * 2.5));
+    var refDomains = Math.round(organic * (0.2 + r() * 1.4));
+    var backlinks = Math.round(refDomains * (6 + r() * 30));
+    var follow = Math.round(backlinks * (0.7 + r() * 0.22));
+    var sampleKw = ["guide complet", "prix", "comparatif", "avis clients", "meilleur outil", "tutoriel", "définition", "logiciel", "exemple", "alternative", "gratuit", "france 2026"];
+    var kws = [];
+    var kwCount = Math.min(12, 6 + Math.floor(r() * 6));
+    for (var i = 0; i < kwCount; i++) {
+      var pos = 1 + Math.floor(Math.pow(r(), 1.6) * 40);
+      var vol = Math.round(90 * Math.pow(10, r() * 3));
+      kws.push({
+        keyword: domain.split(".")[0] + " " + sampleKw[Math.floor(r() * sampleKw.length)],
+        position: pos, volume: vol,
+        cpc: Math.round(r() * 1200) / 100,
+        sd: 10 + Math.floor(r() * 80),
+        traffic: Math.round(vol * (pos <= 3 ? 0.25 : pos <= 10 ? 0.06 : 0.012))
+      });
+    }
+    kws.sort(function (a, b) { return b.traffic - a.traffic; });
+    var lcp = (1.4 + r() * 3).toFixed(1), inp = Math.round(120 + r() * 380), cls = (r() * 0.35).toFixed(2), perf = Math.round(38 + r() * 58);
+    return {
+      domain: domain, da: da, traffic: traffic, organic: organic, backlinks: backlinks, refDomains: refDomains,
+      follow: follow, noFollow: backlinks - follow, trend: trend, keywords: kws,
+      cwv: { lcp: Number(lcp), inp: inp, cls: Number(cls), perf: perf }, _real: false
+    };
+  }
+
+  /* ---------- Scoring ---------- */
+  function computeScore(d) {
+    var daS = Math.min(100, (d.da || 0)) * 0.3;
+    var trafS = Math.min(100, Math.log10((d.traffic || 1) + 1) / 6 * 100) * 0.25;
+    var blS = Math.min(100, Math.log10((d.refDomains || 1) + 1) / 5 * 100) * 0.2;
+    var kwS = Math.min(100, Math.log10((d.organic || 1) + 1) / 5 * 100) * 0.15;
+    var perf = d.cwv && d.cwv.perf != null ? d.cwv.perf : 60;
+    var perfS = perf * 0.1;
+    return Math.max(1, Math.min(100, Math.round(daS + trafS + blS + kwS + perfS)));
+  }
+  function grade(s) { return s >= 85 ? "Excellent" : s >= 70 ? "Bon" : s >= 50 ? "Correct" : s >= 30 ? "À améliorer" : "Faible"; }
+
+  /* ---------- Render ---------- */
+  function render(url, opts, d) {
+    var domain = d.domain || domainOf(url);
+    $("favicon").src = "https://www.google.com/s2/favicons?domain=" + encodeURIComponent(domain) + "&sz=64";
+    $("favicon").onerror = function () { this.style.visibility = "hidden"; };
+    $("domainName").textContent = domain;
+    $("domainSub").textContent = url;
+    $("scopePill").textContent = opts.country + " · " + (opts.lang || "").toUpperCase();
+    $("sourcePill").textContent = d._real ? "Données Ubersuggest" : "Mode démo";
+    $("genDate").textContent = new Date().toLocaleString("fr-FR");
+
+    var score = computeScore(d);
+    animateScore(score);
+    $("scoreGrade").textContent = grade(score);
+
+    $("daVal").textContent = d.da != null ? d.da : "—";
+    $("trafficVal").textContent = fmt(d.traffic);
+    if (d.trend && d.trend.length >= 2) {
+      var a = d.trend[d.trend.length - 2], b = d.trend[d.trend.length - 1];
+      var pct = a ? Math.round((b - a) / a * 100) : 0;
+      var el = $("trafficDelta");
+      el.textContent = (pct >= 0 ? "▲ +" : "▼ ") + pct + "% vs mois précédent";
+      el.className = "delta " + (pct >= 0 ? "up" : "down");
+    } else { $("trafficDelta").textContent = ""; }
+
+    $("kwVal").textContent = fmt(d.organic);
+    $("blVal").textContent = fmt(d.backlinks);
+    $("refDomains").textContent = fmt(d.refDomains) + " domaines référents";
+
+    renderPosBars(d.keywords);
+    renderFollowBars(d.follow, d.noFollow);
+    renderCWV(d.cwv);
+    renderRecos(d, score);
+    renderKwTable(d.keywords, opts);
+    drawTrend(d.trend);
+
+    $("results").classList.remove("hidden");
+    $("results").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function animateScore(score) {
+    var arc = $("gaugeArc"), circ = 352, valEl = $("scoreVal");
+    var start = null, dur = 900;
+    function step(ts) {
+      if (!start) start = ts;
+      var p = Math.min(1, (ts - start) / dur), e = 1 - Math.pow(1 - p, 3);
+      arc.setAttribute("stroke-dashoffset", String(circ - circ * (score / 100) * e));
+      valEl.textContent = Math.round(score * e);
+      if (p < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+
+  function renderPosBars(kws) {
+    var buckets = { "Top 3": 0, "Pos 4–10": 0, "Pos 11–20": 0, "21+": 0 };
+    (kws || []).forEach(function (k) {
+      if (k.position <= 3) buckets["Top 3"]++; else if (k.position <= 10) buckets["Pos 4–10"]++;
+      else if (k.position <= 20) buckets["Pos 11–20"]++; else buckets["21+"]++;
+    });
+    var max = Math.max(1, Math.max.apply(null, Object.keys(buckets).map(function (k) { return buckets[k]; })));
+    $("posBars").innerHTML = Object.keys(buckets).map(function (lbl) {
+      var n = buckets[lbl];
+      return '<div class="bar-row"><span class="lbl">' + lbl + '</span><span class="bar-track"><span class="bar-fill" style="width:' + (n / max * 100) + '%"></span></span><span class="num">' + n + '</span></div>';
+    }).join("");
+  }
+
+  function renderFollowBars(follow, noFollow) {
+    var total = (follow || 0) + (noFollow || 0) || 1;
+    var rows = [["Dofollow", follow || 0], ["Nofollow", noFollow || 0]];
+    $("followBars").innerHTML = rows.map(function (r) {
+      return '<div class="bar-row"><span class="lbl">' + r[0] + '</span><span class="bar-track"><span class="bar-fill" style="width:' + (r[1] / total * 100) + '%"></span></span><span class="num">' + fmt(r[1]) + '</span></div>';
+    }).join("");
+  }
+
+  function cwvStatus(metric, val) {
+    var t = { lcp: [2.5, 4], inp: [200, 500], cls: [0.1, 0.25] }[metric];
+    if (val == null || !t) return "o";
+    return val <= t[0] ? "g" : val <= t[1] ? "o" : "r";
+  }
+  function renderCWV(cwv) {
+    if (!cwv) { $("cwvList").innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px 0">Mesure indisponible pour ce domaine.</div>'; return; }
+    var rows = [
+      ["LCP", cwv.lcp != null ? cwv.lcp + " s" : "—", cwvStatus("lcp", cwv.lcp)],
+      ["INP", cwv.inp != null ? cwv.inp + " ms" : "—", cwvStatus("inp", cwv.inp)],
+      ["CLS", cwv.cls != null ? cwv.cls : "—", cwvStatus("cls", cwv.cls)],
+      ["Perf. globale", cwv.perf != null ? cwv.perf + " / 100" : "—", cwv.perf >= 90 ? "g" : cwv.perf >= 50 ? "o" : "r"]
+    ];
+    $("cwvList").innerHTML = rows.map(function (r) {
+      return '<div class="cwv-item"><span><span class="dot ' + r[2] + '"></span>' + r[0] + '</span><span class="v">' + r[1] + '</span></div>';
+    }).join("");
+  }
+
+  function renderRecos(d, score) {
+    var recs = [];
+    if ((d.da || 0) < 40) recs.push(["crit", "🔗", "Renforcer l'autorité de domaine", "DA de " + (d.da || 0) + "/100. Visez des backlinks de sites à forte autorité thématique."]);
+    if (d.cwv && d.cwv.lcp != null && d.cwv.lcp > 2.5) recs.push(["crit", "⚡", "Améliorer le LCP", "LCP de " + d.cwv.lcp + "s (cible < 2,5s). Optimisez images et hébergement."]);
+    if (d.cwv && d.cwv.cls != null && d.cwv.cls > 0.1) recs.push(["warn", "📐", "Réduire le CLS", "Décalage visuel de " + d.cwv.cls + " (cible < 0,1). Réservez les dimensions média."]);
+    var topShare = (d.keywords || []).filter(function (k) { return k.position <= 3; }).length;
+    if (topShare < 2) recs.push(["warn", "🎯", "Conquérir le top 3", "Peu de mots-clés en top 3. Renforcez le contenu sur vos requêtes en page 1."]);
+    if ((d.refDomains || 0) < 100) recs.push(["warn", "🌐", "Diversifier les référents", fmt(d.refDomains) + " domaines référents. Multipliez les sources de liens."]);
+    if (score >= 70) recs.push(["ok", "✅", "Bonne base SEO", "Le domaine présente des fondamentaux solides. Maintenez la production de contenu."]);
+    if (!recs.length) recs.push(["ok", "✅", "Aucun blocage majeur détecté", "Poursuivez le suivi régulier des positions."]);
+    $("recos").innerHTML = recs.slice(0, 5).map(function (r) {
+      return '<div class="rec ' + r[0] + '"><span class="ico">' + r[1] + '</span><span class="body"><b>' + esc(r[2]) + '</b><span>' + esc(r[3]) + '</span></span></div>';
+    }).join("");
+  }
+
+  function renderKwTable(kws, opts) {
+    if (!kws || !kws.length) { $("kwBody").innerHTML = '<tr><td colspan="6" style="color:var(--muted)">Aucun mot-clé disponible.</td></tr>'; return; }
+    $("kwBody").innerHTML = kws.map(function (k) {
+      var cls = k.position <= 3 ? "top" : k.position <= 10 ? "mid" : "low";
+      var cpc = k.cpc != null ? (k.cpc).toFixed(2) + " €" : "—";
+      return "<tr>" +
+        '<td class="kw">' + esc(k.keyword) + "</td>" +
+        '<td class="num"><span class="pos ' + cls + '">' + (k.position || "—") + "</span></td>" +
+        '<td class="num">' + fmt(k.volume) + "</td>" +
+        '<td class="num">' + cpc + "</td>" +
+        '<td class="num">' + (k.sd != null ? k.sd : "—") + "</td>" +
+        '<td class="num">' + fmt(k.traffic) + "</td>" +
+        "</tr>";
+    }).join("");
+  }
+
+  /* ---------- Trend chart (canvas, no deps) ---------- */
+  function drawTrend(trend) {
+    var cv = $("trendChart"); if (!cv) return;
+    var ctx = cv.getContext("2d");
+    var dpr = window.devicePixelRatio || 1;
+    var cssW = cv.clientWidth || 720, cssH = 130;
+    cv.width = cssW * dpr; cv.height = cssH * dpr; ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, cssW, cssH);
+    if (!trend || trend.length < 2) { ctx.fillStyle = "#8892b0"; ctx.font = "13px sans-serif"; ctx.fillText("Données de tendance indisponibles.", 10, 24); return; }
+    var pad = 8, w = cssW - pad * 2, h = cssH - pad * 2;
+    var max = Math.max.apply(null, trend), min = Math.min.apply(null, trend);
+    var span = max - min || 1;
+    var x = function (i) { return pad + (i / (trend.length - 1)) * w; };
+    var y = function (v) { return pad + h - ((v - min) / span) * h; };
+    // gradient fill
+    var g = ctx.createLinearGradient(0, pad, 0, pad + h);
+    g.addColorStop(0, "rgba(109,139,255,.35)"); g.addColorStop(1, "rgba(109,139,255,0)");
+    ctx.beginPath(); ctx.moveTo(x(0), y(trend[0]));
+    trend.forEach(function (v, i) { ctx.lineTo(x(i), y(v)); });
+    ctx.lineTo(x(trend.length - 1), pad + h); ctx.lineTo(x(0), pad + h); ctx.closePath();
+    ctx.fillStyle = g; ctx.fill();
+    // line
+    ctx.beginPath(); ctx.moveTo(x(0), y(trend[0]));
+    trend.forEach(function (v, i) { ctx.lineTo(x(i), y(v)); });
+    ctx.lineWidth = 2.5; ctx.strokeStyle = "#8b5cf6"; ctx.lineJoin = "round"; ctx.stroke();
+    // last point
+    ctx.beginPath(); ctx.arc(x(trend.length - 1), y(trend[trend.length - 1]), 4, 0, Math.PI * 2);
+    ctx.fillStyle = "#8b5cf6"; ctx.fill(); ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.stroke();
+  }
+
+  window.addEventListener("resize", function () {
+    if (!$("results").classList.contains("hidden") && window._lastTrend) drawTrend(window._lastTrend);
+  });
+  var _origDraw = drawTrend;
+  drawTrend = function (t) { window._lastTrend = t; _origDraw(t); };
+
+  refreshModeNote();
+})();
+</script>
+</body>
+</html>
